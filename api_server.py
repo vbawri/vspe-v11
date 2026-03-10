@@ -269,11 +269,10 @@ def search_gemini(query):
             "contents": [{"parts": [{"text": query}]}],
             "systemInstruction": {"parts": [{"text": CARD_SYSTEM_PROMPT}]},
             "tools": [{"googleSearch": {}}],
-                        "generationConfig": {"temperature": 0.3}
+            "generationConfig": {"temperature": 0.3}
         }
         with httpx.Client(timeout=30) as client:
             resp = client.post(url, json=payload)
-                        "generationConfig": {"temperature": 0.3}
                 return {"error": f"Gemini returned status {resp.status_code}"}
             data = resp.json()
             candidates = data.get("candidates", [])
