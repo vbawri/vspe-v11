@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VSPE v11 — System Health</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0a0a0f; color: #e0e0e0; min-height: 100vh;
+    padding: 20px;
+}
+.header {
+    text-align: center; margin-bottom: 30px;
+}
+.header h1 { font-size: 24px; color: #fff; }
+.header p { font-size: 13px; color: #6a6a8a; margin-top: 4px; }
+.grid {
+    max-width: 700px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;
+}
+.health-card {
+    background: #12121f; border-radius: 16px; padding: 20px;
+    border: 1px solid #1a1a2e; text-align: center;
+}
+.health-icon { font-size: 40px; margin-bottom: 8px; }
+.health-name { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+.health-status { font-size: 13px; margin-bottom: 4px; font-weight: 600; }
+.health-latency { font-size: 12px; color: #6a6a8a; }
+.status-live { color: #4ade80; }
+.status-degraded { color: #fbbf24; }
+.status-down { color: #f87171; }
+.status-no_key { color: #6a6a8a; }
+.last-update {
+    text-align: center; margin-top: 20px;
+    font-size: 12px; color: #6a6a8a;
+}
+.refresh-btn {
+    display: block; margin: 20px auto;
+    padding: 10px 24px; border-radius: 12px; border: none;
+    background: #4a6cf7; color: #fff; font-size: 14px; cursor: pointer;
+}
+.refresh-btn:hover { background: #3a5ce5; }
+.overall {
+    max-width: 700px; margin: 0 auto 20px;
+    background: #12121f; border-radius: 16px; padding: 16px;
+    border: 1px solid #1a1a2e; text-align: center;
+}
+.overall-status { font-size: 48px; }
+.overall-text { font-size: 18px; font-weight: 600; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🏥 VSPE System Health</h1>
+    <p>Real-time status of all data sources</p>
+</div>
+
+<div class="overall" id="overall">
+    <div class="overall-status">⏳</div>
+    <div class="overall-text">Checking...</div>
+</div>
+
+<div class="grid" id="healthGrid">
+    <div class="health-card">
+        <div class="health-icon">⏳</div>
+        <div class="health-name">Loading...</div>
+    </div>
+</div>
+
+<button class="refresh-btn" onclick="checkHealth()">🔄 Refresh</button>
+<div class="last-update" id="lastUpdate"></div>
+
+<script>
+const API_NAMES = {
+    'yfinance': { name: 'Yahoo Finance', icon: '📈', desc: 'Gold, Stocks, FX' },
+    'exchangerate_api': { name: 'ExchangeRate API', icon: '💱', desc: 'FX Backup' },
+    'coingecko': { name: 'CoinGecko', icon: '₿', desc: 'Crypto' },
+    'gemini': { name: 'Gemini AI', icon: '🤖', desc: 'General Search' },
+    'google_news': { name: 'Google News', icon: '📰', desc: 'Headlines' },
+    'open_meteo': { name: 'Open-Meteo', icon: '🌤', desc: 'Weather' }
+};
+
+function checkHealth() {
+    document.getElementById('healthGrid').innerHTML = '<div class="health-card"><div class="health-icon">⏳</div><div class="health-name">Checking...</div></div>';
+
+    fetch('/api/health')
+        .then(r => r.json())
+        .then(data => renderHealth(data))
+        .catch(err => {
+            document.getElementById('overall').innerHTML = '<div class="overall-status">🔴</div><div class="overall-text" style="color:#f87171">Cannot reach server</div>';
+        });
+}
+
+function renderHealth(data) {
+    const grid = document.getElementById('healthGrid');
+    grid.innerHTML = '';
+
+    let liveCount = 0;
+    let totalCount = 0;
+
+    for (const [key, info] of Object.entries(data)) {
+        totalCount++;
+        const meta = API_NAMES[key] || { name: key, icon: '❓', desc: '' };
+        const status = info.status || 'unknown';
+        if (status === 'live') liveCount++;
+
+        const statusClass = 'status-' + status;
+        const statusIcon = status === 'live' ? '✅' : status === 'degraded' ? '⚠️' : status === 'no_key' ? '🔑' : '❌';
+
+        grid.innerHTML += `
+        <div class="health-card">
+            <div class="health-icon">${meta.icon}</div>
+            <div class="health-name">${meta.name}</div>
+            <div class="health-status ${statusClass}">${statusIcon} ${status.toUpperCase()}</div>
+            <div class="health-latency">${info.latency_ms ? info.latency_ms + 'ms' : ''}</div>
+            <div style="font-size:11px;color:#6a6a8a;margin-top:4px;">${meta.desc}</div>
+            ${info.error ? '<div style="font-size:11px;color:#f87171;margin-top:4px;">' + info.error + '</div>' : ''}
+            ${info.sample ? '<div style="font-size:11px;color:#4ade80;margin-top:4px;">Sample: ' + info.sample + '</div>' : ''}
+        </div>`;
+    }
+
+    // Overall
+    const overall = document.getElementById('overall');
+    if (liveCount === totalCount) {
+        overall.innerHTML = '<div class="overall-status">✅</div><div class="overall-text" style="color:#4ade80">All Systems Operational</div>';
+    } else if (liveCount > totalCount / 2) {
+        overall.innerHTML = '<div class="overall-status">⚠️</div><div class="overall-text" style="color:#fbbf24">Partial Degradation (' + liveCount + '/' + totalCount + ' live)</div>';
+    } else {
+        overall.innerHTML = '<div class="overall-status">🔴</div><div class="overall-text" style="color:#f87171">Major Outage (' + liveCount + '/' + totalCount + ' live)</div>';
+    }
+
+    document.getElementById('lastUpdate').textContent = 'Last checked: ' + new Date().toLocaleTimeString();
+}
+
+checkHealth();
+setInterval(checkHealth, 60000);
+</script>
+</body>
+</html>

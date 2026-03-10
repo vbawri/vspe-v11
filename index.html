@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VSPE v11 — Visual Search</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0a0a0f; color: #e0e0e0; min-height: 100vh;
+}
+
+/* Search Bar */
+.search-container {
+    position: sticky; top: 0; z-index: 100;
+    background: #0a0a0f; padding: 12px 16px;
+    border-bottom: 1px solid #1a1a2e;
+}
+.search-bar {
+    display: flex; gap: 8px; max-width: 700px; margin: 0 auto;
+}
+.search-bar input {
+    flex: 1; padding: 12px 16px; border-radius: 12px;
+    border: 1px solid #2a2a4a; background: #12121f; color: #fff;
+    font-size: 16px; outline: none;
+}
+.search-bar input:focus { border-color: #4a6cf7; }
+.search-bar button {
+    padding: 12px 20px; border-radius: 12px; border: none;
+    background: #4a6cf7; color: #fff; font-size: 16px; cursor: pointer;
+    font-weight: 600;
+}
+.search-bar button:hover { background: #3a5ce5; }
+
+/* Quick Tags */
+.quick-tags {
+    display: flex; gap: 8px; max-width: 700px; margin: 8px auto 0;
+    overflow-x: auto; padding-bottom: 4px;
+}
+.quick-tags button {
+    padding: 6px 14px; border-radius: 20px; border: 1px solid #2a2a4a;
+    background: #12121f; color: #9a9ab0; font-size: 13px; cursor: pointer;
+    white-space: nowrap;
+}
+.quick-tags button:hover { border-color: #4a6cf7; color: #fff; }
+
+/* Cards Grid */
+.cards-container {
+    max-width: 700px; margin: 16px auto; padding: 0 16px;
+    display: flex; flex-direction: column; gap: 12px;
+}
+
+/* Card Base */
+.card {
+    background: #12121f; border-radius: 16px; padding: 16px;
+    border: 1px solid #1a1a2e;
+}
+
+/* Trust Badge */
+.trust-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; padding: 3px 8px; border-radius: 10px;
+    margin-bottom: 8px;
+}
+.trust-live { background: #0a2e1a; color: #4ade80; }
+.trust-verified { background: #0a1a3e; color: #60a5fa; }
+.trust-single { background: #2e2a0a; color: #fbbf24; }
+.trust-stale { background: #2e1a0a; color: #fb923c; }
+.trust-error { background: #2e0a0a; color: #f87171; }
+
+/* Stat Card */
+.stat-card .stat-value {
+    font-size: 36px; font-weight: 700; color: #fff;
+    line-height: 1.1;
+}
+.stat-card .stat-label {
+    font-size: 13px; color: #9a9ab0; margin-top: 4px;
+}
+.stat-card .stat-change {
+    font-size: 14px; margin-top: 4px;
+}
+.stat-change.positive { color: #4ade80; }
+.stat-change.negative { color: #f87171; }
+
+/* Stat Row */
+.stat-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;
+}
+.stat-row .card { text-align: center; }
+.stat-row .stat-value { font-size: 24px; }
+
+/* Chart Card */
+.chart-card canvas { width: 100% !important; height: 200px !important; }
+
+/* Fact Card */
+.fact-card .fact-text {
+    font-size: 15px; line-height: 1.5; color: #d0d0e0;
+}
+.fact-card .fact-source {
+    font-size: 11px; color: #6a6a8a; margin-top: 8px;
+}
+
+/* Table Card */
+.table-card table {
+    width: 100%; border-collapse: collapse; font-size: 14px;
+}
+.table-card th {
+    text-align: left; padding: 8px; border-bottom: 1px solid #2a2a4a;
+    color: #9a9ab0; font-weight: 500;
+}
+.table-card td {
+    padding: 8px; border-bottom: 1px solid #1a1a2e;
+}
+
+/* News Card */
+.news-card .news-item {
+    padding: 12px 0; border-bottom: 1px solid #1a1a2e;
+}
+.news-card .news-item:last-child { border: none; }
+.news-card .news-title {
+    font-size: 14px; color: #d0d0e0; text-decoration: none;
+    line-height: 1.4;
+}
+.news-card .news-title:hover { color: #4a6cf7; }
+.news-card .news-meta {
+    font-size: 11px; color: #6a6a8a; margin-top: 4px;
+}
+
+/* Checklist Card */
+.checklist-card .check-item {
+    padding: 8px 0; display: flex; align-items: center; gap: 8px;
+    font-size: 14px; border-bottom: 1px solid #1a1a2e;
+}
+.checklist-card .check-item:last-child { border: none; }
+.check-icon { color: #4a6cf7; font-size: 16px; }
+
+/* Disclaimer Card */
+.disclaimer-card {
+    background: #1a1a0a; border-color: #3a3a1a;
+}
+.disclaimer-card .disclaimer-text {
+    font-size: 13px; color: #fbbf24; display: flex; align-items: center; gap: 8px;
+}
+
+/* Loading */
+.loading {
+    text-align: center; padding: 40px;
+    color: #6a6a8a; font-size: 14px;
+}
+.loading .spinner {
+    width: 32px; height: 32px; border: 3px solid #2a2a4a;
+    border-top-color: #4a6cf7; border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Error Card */
+.error-card {
+    background: #1a0a0a; border-color: #3a1a1a;
+    text-align: center; padding: 24px;
+}
+.error-card .error-icon { font-size: 32px; margin-bottom: 8px; }
+.error-card .error-text { font-size: 14px; color: #f87171; }
+
+/* Card Title */
+.card-title {
+    font-size: 13px; font-weight: 600; color: #9a9ab0;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+/* Health Page */
+.health-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;
+}
+.health-item { text-align: center; }
+.health-status { font-size: 24px; margin-bottom: 4px; }
+.health-name { font-size: 14px; font-weight: 600; }
+.health-latency { font-size: 12px; color: #6a6a8a; }
+
+/* Responsive */
+@media (max-width: 480px) {
+    .stat-card .stat-value { font-size: 28px; }
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="search-container">
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Ask anything..." autofocus>
+        <button onclick="doSearch()">Search</button>
+    </div>
+    <div class="quick-tags">
+        <button onclick="doQuick('gold price')">🥇 Gold</button>
+        <button onclick="doQuick('bitcoin')">₿ Bitcoin</button>
+        <button onclick="doQuick('NVDA')">📈 NVDA</button>
+        <button onclick="doQuick('usd inr')">💱 USD/INR</button>
+        <button onclick="doQuick('latest news india')">📰 News</button>
+        <button onclick="doQuick('weather kolkata')">🌤 Weather</button>
+    </div>
+</div>
+
+<div class="cards-container" id="cardsContainer">
+    <div class="card" style="text-align:center; padding:40px;">
+        <div style="font-size:48px; margin-bottom:12px;">🔍</div>
+        <div style="font-size:18px; font-weight:600; color:#fff; margin-bottom:8px;">VSPE v11</div>
+        <div style="font-size:14px; color:#6a6a8a;">Visual Search Presentation Engine</div>
+        <div style="font-size:13px; color:#4a6cf7; margin-top:12px;">Ask anything. See everything.</div>
+    </div>
+</div>
+
+<script>
+const API = '';
+const container = document.getElementById('cardsContainer');
+const input = document.getElementById('searchInput');
+
+input.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+function doQuick(q) { input.value = q; doSearch(); }
+
+function doSearch() {
+    const q = input.value.trim();
+    if (!q) return;
+    container.innerHTML = '<div class="loading"><div class="spinner"></div>Searching...</div>';
+    fetch(`${API}/api/search?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(data => renderResponse(data, q))
+        .catch(err => renderError(err.message));
+}
+
+function trustBadge(trust) {
+    const map = {
+        'live': ['🟢', 'LIVE', 'trust-live'],
+        'verified': ['🔵', 'VERIFIED', 'trust-verified'],
+        'single_source': ['🟡', 'SINGLE SOURCE', 'trust-single'],
+        'stale': ['🟠', 'CACHED', 'trust-stale'],
+        'error': ['🔴', 'ERROR', 'trust-error'],
+        'unverified': ['🔴', 'UNVERIFIED', 'trust-error'],
+        'cross_check_mismatch': ['🟡', 'SOURCES DIFFER', 'trust-single'],
+    };
+    const [icon, label, cls] = map[trust] || map['live'];
+    return `<span class="trust-badge ${cls}">${icon} ${label}</span>`;
+}
+
+function providerInfo(data) {
+    let info = '';
+    if (data.provider) info += data.provider;
+    if (data.as_of) {
+        const d = new Date(data.as_of);
+        info += ' • ' + d.toLocaleTimeString();
+    }
+    if (data.stale) info += ' • ⚠️ stale data';
+    return info ? `<div style="font-size:11px;color:#6a6a8a;margin-top:4px;">${info}</div>` : '';
+}
+
+function renderResponse(resp, query) {
+    container.innerHTML = '';
+    const data = resp.data;
+    const cat = data?.category || '';
+
+    if (resp.trust === 'error' || resp.error) {
+        renderError(resp.error || 'Something went wrong');
+        return;
+    }
+
+    // Trust badge + provider for all
+    const badge = trustBadge(resp.trust);
+    const provider = providerInfo(resp);
+
+    if (cat === 'financial' || data?.futures) {
+        renderFinancial(data, badge, provider);
+    } else if (cat === 'crypto') {
+        renderCrypto(data, badge, provider);
+    } else if (cat === 'fx') {
+        renderFX(data, badge, provider, resp.cross_check);
+    } else if (cat === 'news') {
+        renderNews(data.articles || data, badge, provider);
+    } else if (cat === 'general' && data?.result) {
+        renderGemini(data, badge, provider);
+    } else {
+        renderRaw(data, badge, provider);
+    }
+}
+
+function renderFinancial(data, badge, provider) {
+    // Main price
+    if (data.futures?.price) {
+        const price = data.futures.price;
+        container.innerHTML += `
+        <div class="card stat-card">
+            ${badge}
+            <div class="card-title">Gold Futures (GC=F)</div>
+            <div class="stat-value">$${price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+            ${provider}
+        </div>`;
+    }
+
+    // Stat row
+    let statsHtml = '<div class="stat-row">';
+    if (data.gvz) statsHtml += `<div class="card stat-card"><div class="card-title">GVZ</div><div class="stat-value">${data.gvz.toFixed(2)}</div></div>`;
+    if (data.open_interest) statsHtml += `<div class="card stat-card"><div class="card-title">Open Interest</div><div class="stat-value">${(data.open_interest/1000).toFixed(1)}K</div></div>`;
+    if (data.usd_inr?.rate) statsHtml += `<div class="card stat-card"><div class="card-title">USD/INR</div><div class="stat-value">₹${data.usd_inr.rate.toFixed(2)}</div></div>`;
+    if (data.mcx_gold_approx) statsHtml += `<div class="card stat-card"><div class="card-title">MCX Gold (approx)</div><div class="stat-value">₹${data.mcx_gold_approx.toLocaleString()}</div></div>`;
+    if (data.spot_gold?.price) statsHtml += `<div class="card stat-card"><div class="card-title">Spot Gold</div><div class="stat-value">$${data.spot_gold.price.toLocaleString()}</div></div>`;
+    statsHtml += '</div>';
+    container.innerHTML += statsHtml;
+
+    // Cross-check info
+    if (data.usd_inr?.cross_check) {
+        const cc = data.usd_inr.cross_check;
+        if (cc.status === 'agree') {
+            container.innerHTML += `<div class="card" style="font-size:12px;color:#4ade80;">✅ FX cross-check: Yahoo (₹${data.usd_inr.rate?.toFixed(2)}) and ExchangeRate-API (₹${cc.exchangerate_api?.toFixed(2)}) agree (diff: ₹${cc.diff})</div>`;
+        } else if (cc.status === 'disagree') {
+            container.innerHTML += `<div class="card" style="font-size:12px;color:#fbbf24;">⚠️ FX sources differ: Yahoo (₹${data.usd_inr.rate?.toFixed(2)}) vs ExchangeRate-API (₹${cc.exchangerate_api?.toFixed(2)}) — diff: ₹${cc.diff}</div>`;
+        }
+    }
+
+    // S/R Levels
+    if (data.support_resistance) {
+        const sr = data.support_resistance;
+        container.innerHTML += `
+        <div class="card table-card">
+            <div class="card-title">Support / Resistance (Pivot Points)</div>
+            <table>
+                <tr><th>Level</th><th>Price</th></tr>
+                <tr><td style="color:#f87171">R2</td><td>$${sr.r2}</td></tr>
+                <tr><td style="color:#fb923c">R1</td><td>$${sr.r1}</td></tr>
+                <tr><td style="color:#fbbf24">Pivot</td><td>$${sr.pivot}</td></tr>
+                <tr><td style="color:#60a5fa">S1</td><td>$${sr.s1}</td></tr>
+                <tr><td style="color:#4a6cf7">S2</td><td>$${sr.s2}</td></tr>
+            </table>
+        </div>`;
+    }
+
+    // Chart
+    if (data.futures?.history?.length) {
+        renderChart('Gold Futures — 5 Day', data.futures.history);
+    }
+
+    // Errors
+    if (data._errors?.length) {
+        container.innerHTML += `<div class="card disclaimer-card"><div class="disclaimer-text">⚠️ Some data unavailable: ${data._errors.join(', ')}</div></div>`;
+    }
+}
+
+function renderCrypto(data, badge, provider) {
+    container.innerHTML += `
+    <div class="card stat-card">
+        ${badge}
+        <div class="card-title">${data.name || 'Crypto'} (${(data.symbol||'').toUpperCase()})</div>
+        <div class="stat-value">$${data.price_usd?.toLocaleString()}</div>
+        <div class="stat-change ${data.change_24h >= 0 ? 'positive' : 'negative'}">${data.change_24h >= 0 ? '▲' : '▼'} ${Math.abs(data.change_24h || 0).toFixed(2)}% (24h)</div>
+        ${provider}
+    </div>`;
+
+    let statsHtml = '<div class="stat-row">';
+    if (data.price_inr) statsHtml += `<div class="card stat-card"><div class="card-title">Price (INR)</div><div class="stat-value">₹${data.price_inr?.toLocaleString()}</div></div>`;
+    if (data.market_cap_usd) statsHtml += `<div class="card stat-card"><div class="card-title">Market Cap</div><div class="stat-value">$${(data.market_cap_usd/1e9).toFixed(1)}B</div></div>`;
+    if (data.high_24h) statsHtml += `<div class="card stat-card"><div class="card-title">24h High</div><div class="stat-value">$${data.high_24h?.toLocaleString()}</div></div>`;
+    if (data.low_24h) statsHtml += `<div class="card stat-card"><div class="card-title">24h Low</div><div class="stat-value">$${data.low_24h?.toLocaleString()}</div></div>`;
+    statsHtml += '</div>';
+    container.innerHTML += statsHtml;
+}
+
+function renderFX(data, badge, provider, crossCheck) {
+    container.innerHTML += `
+    <div class="card stat-card">
+        ${badge}
+        <div class="card-title">${data.pair || 'USD/INR'}</div>
+        <div class="stat-value">₹${data.rate?.toFixed(4)}</div>
+        ${provider}
+    </div>`;
+
+    if (crossCheck?.status === 'agree') {
+        container.innerHTML += `<div class="card" style="font-size:12px;color:#4ade80;">✅ Cross-checked: sources agree (diff: ₹${crossCheck.diff})</div>`;
+    } else if (crossCheck?.status === 'disagree') {
+        container.innerHTML += `<div class="card" style="font-size:12px;color:#fbbf24;">⚠️ Sources differ by ₹${crossCheck.diff}</div>`;
+    }
+}
+
+function renderNews(articles, badge, provider) {
+    if (!articles?.length) { renderError('No news found'); return; }
+    let html = `<div class="card news-card">${badge}<div class="card-title">News</div>`;
+    articles.forEach(a => {
+        html += `<div class="news-item">
+            <a class="news-title" href="${a.link}" target="_blank">${a.title}</a>
+            <div class="news-meta">${a.source || ''} ${a.published ? '• ' + a.published : ''}</div>
+        </div>`;
+    });
+    html += `${provider}</div>`;
+    container.innerHTML += html;
+}
+
+function renderGemini(data, badge, provider) {
+    const result = data.result;
+    const sources = data.sources || [];
+
+    if (result?.cards) {
+        result.cards.forEach(card => {
+            switch(card.type) {
+                case 'stat':
+                    container.innerHTML += `<div class="card stat-card">${badge}<div class="card-title">${card.title||''}</div><div class="stat-value">${card.value||card.content||''}</div><div class="stat-label">${card.unit||''}</div><div class="fact-source">${card.source||''}</div></div>`;
+                    break;
+                case 'fact':
+                    container.innerHTML += `<div class="card fact-card">${badge}<div class="card-title">${card.title||''}</div><div class="fact-text">${card.content||''}</div><div class="fact-source">${card.source||''}</div></div>`;
+                    break;
+                case 'table':
+                    let tHtml = `<div class="card table-card">${badge}<div class="card-title">${card.title||''}</div><table>`;
+                    if (card.columns) tHtml += '<tr>' + card.columns.map(c=>`<th>${c}</th>`).join('') + '</tr>';
+                    if (card.rows) card.rows.forEach(r => { tHtml += '<tr>' + r.map(c=>`<td>${c}</td>`).join('') + '</tr>'; });
+                    tHtml += `</table><div class="fact-source">${card.source||''}</div></div>`;
+                    container.innerHTML += tHtml;
+                    break;
+                case 'checklist':
+                    let clHtml = `<div class="card checklist-card">${badge}<div class="card-title">${card.title||''}</div>`;
+                    (card.items||[]).forEach(item => { clHtml += `<div class="check-item"><span class="check-icon">●</span>${item}</div>`; });
+                    clHtml += '</div>';
+                    container.innerHTML += clHtml;
+                    break;
+                case 'disclaimer':
+                    container.innerHTML += `<div class="card disclaimer-card"><div class="disclaimer-text">⚠️ ${card.content||''}</div></div>`;
+                    break;
+                case 'video':
+                    container.innerHTML += `<div class="card fact-card">${badge}<div class="card-title">🎬 ${card.title||''}</div><div class="fact-text">${card.content||''}</div>${card.url ? `<a href="${card.url}" target="_blank" style="color:#4a6cf7;font-size:13px;">Watch →</a>` : ''}</div>`;
+                    break;
+                case 'image':
+                    container.innerHTML += `<div class="card fact-card">${badge}<div class="card-title">🖼 ${card.title||''}</div>${card.url ? `<img src="${card.url}" style="width:100%;border-radius:8px;margin:8px 0;">` : ''}<div class="fact-text">${card.content||''}</div></div>`;
+                    break;
+                default:
+                    container.innerHTML += `<div class="card fact-card">${badge}<div class="card-title">${card.title||''}</div><div class="fact-text">${card.content||''}</div><div class="fact-source">${card.source||''}</div></div>`;
+            }
+        });
+    } else if (typeof result === 'string') {
+        container.innerHTML += `<div class="card fact-card">${badge}<div class="fact-text">${result}</div>${provider}</div>`;
+    } else {
+        container.innerHTML += `<div class="card fact-card">${badge}<div class="fact-text">${JSON.stringify(result)}</div>${provider}</div>`;
+    }
+
+    // Sources
+    if (sources.length) {
+        let srcHtml = '<div class="card"><div class="card-title">Sources</div>';
+        sources.forEach(s => {
+            srcHtml += `<div style="padding:4px 0;font-size:12px;"><a href="${s.url}" target="_blank" style="color:#4a6cf7;">${s.title || s.url}</a></div>`;
+        });
+        srcHtml += '</div>';
+        container.innerHTML += srcHtml;
+    }
+}
+
+function renderRaw(data, badge, provider) {
+    container.innerHTML += `<div class="card fact-card">${badge}<div class="fact-text">${JSON.stringify(data, null, 2)}</div>${provider}</div>`;
+}
+
+function renderChart(title, history) {
+    const id = 'chart_' + Math.random().toString(36).substr(2);
+    container.innerHTML += `<div class="card chart-card"><div class="card-title">${title}</div><canvas id="${id}"></canvas></div>`;
+
+    setTimeout(() => {
+        const ctx = document.getElementById(id);
+        if (!ctx) return;
+        const labels = history.map(h => {
+            const d = new Date(h.time);
+            return d.toLocaleDateString(undefined, {month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString(undefined, {hour:'2-digit',minute:'2-digit'});
+        });
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Price',
+                    data: history.map(h => h.close),
+                    borderColor: '#4a6cf7',
+                    backgroundColor: 'rgba(74,108,247,0.1)',
+                    fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: true, ticks: { maxTicksLimit: 6, color: '#6a6a8a', font: { size: 10 } }, grid: { color: '#1a1a2e' } },
+                    y: { ticks: { color: '#6a6a8a', font: { size: 10 } }, grid: { color: '#1a1a2e' } }
+                }
+            }
+        });
+    }, 100);
+}
+
+function renderError(msg) {
+    container.innerHTML = `<div class="card error-card"><div class="error-icon">⚠️</div><div class="error-text">${msg}</div><div style="font-size:12px;color:#6a6a8a;margin-top:8px;">Try again or check /api/health</div></div>`;
+}
+</script>
+</body>
+</html>
