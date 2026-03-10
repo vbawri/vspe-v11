@@ -134,17 +134,11 @@ def fetch_gold_data():
         result["gvz"] = gvz
     except Exception as e: errors.append(f"gvz: {e}")
 
-        try:
-    gc = yf.Ticker("GC=F")
     try:
-        info = gc.info or {}
-    except (json.JSONDecodeError, ValueError, Exception) as parse_err:
-        info = {}
-        errors.append(f"oi: Yahoo returned non-JSON response: {parse_err}")
-    result["open_interest"] = info.get("openInterest")
-except Exception as e:
-    errors.append(f"oi: {e}")
-    result["open_interest"] = None
+        gc = yf.Ticker("GC=F")
+        info = gc.info if hasattr(gc, 'info') else {}
+        result["open_interest"] = info.get("openInterest")
+    except Exception as e: errors.append(f"oi: {e}")
 
     fx_rate, fx_provider, fx_cross = get_fx_crosschecked()
     result["usd_inr"] = {"rate": fx_rate, "provider": fx_provider, "cross_check": fx_cross}
