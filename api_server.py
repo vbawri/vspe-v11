@@ -264,16 +264,16 @@ def search_gemini(query):
     if not GEMINI_API_KEY:
         return {"error": "Gemini API key not configured. Add GEMINI_API_KEY in Render environment variables."}
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
             "contents": [{"parts": [{"text": query}]}],
             "systemInstruction": {"parts": [{"text": CARD_SYSTEM_PROMPT}]},
             "tools": [{"googleSearch": {}}],
-            "generationConfig": {"temperature": 0.3, "responseMimeType": "application/json"}
+                        "generationConfig": {"temperature": 0.3}
         }
         with httpx.Client(timeout=30) as client:
             resp = client.post(url, json=payload)
-            if resp.status_code != 200 or not resp.text.strip():
+                        "generationConfig": {"temperature": 0.3}
                 return {"error": f"Gemini returned status {resp.status_code}"}
             data = resp.json()
             candidates = data.get("candidates", [])
